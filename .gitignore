@@ -1,0 +1,28 @@
+# Variables d'environnement — NE JAMAIS COMMIT
+.env*
+!.env.example
+
+# Dépendances
+node_modules/
+
+# Base de données SQLite (les plannings de production)
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# Logs (pm2)
+logs/*
+!logs/.gitkeep
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Éditeurs
+.vscode/
+.idea/
+*.swp

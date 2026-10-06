@@ -1,0 +1,25 @@
+{
+  "name": "holidayhub",
+  "version": "1.0.0",
+  "description": "HolidayHub — plannings de vacances entre amis, sans compte : grille jours × périodes, budget, menus, météo, listes",
+  "main": "server.js",
+  "author": "Téo Asseline",
+  "license": "ISC",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "images": "node scripts/build-images.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "sharp": "^0.34.5"
+  }
+}

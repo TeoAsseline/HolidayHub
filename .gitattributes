@@ -1,0 +1,18 @@
+# Fins de ligne normalisées en LF dans le dépôt.
+# Sans cela, un script shell commité depuis Windows arrive en CRLF sur le VPS
+# et Linux répond « bad interpreter: No such file or directory ».
+* text=auto eol=lf
+
+*.sh      text eol=lf
+*.js      text eol=lf
+*.json    text eol=lf
+*.css     text eol=lf
+*.html    text eol=lf
+*.md      text eol=lf
+*.yml     text eol=lf
+
+*.png     binary
+*.jpg     binary
+*.ico     binary
+*.xlsx    binary
+*.webmanifest text eol=lf

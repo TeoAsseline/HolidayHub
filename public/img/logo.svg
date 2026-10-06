@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="HolidayHub">
+  <defs>
+    <linearGradient id="hh-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22c55e"/>
+      <stop offset="1" stop-color="#15803d"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#hh-bg)"/>
+  <!-- Calendrier -->
+  <rect x="12" y="16" width="40" height="36" rx="7" fill="#ffffff"/>
+  <path d="M12 23a7 7 0 0 1 7-7h26a7 7 0 0 1 7 7v3H12z" fill="#dcfce7"/>
+  <rect x="21" y="10" width="5" height="11" rx="2.5" fill="#ffffff"/>
+  <rect x="38" y="10" width="5" height="11" rx="2.5" fill="#ffffff"/>
+  <!-- Soleil qui se lève sur la mer -->
+  <path d="M24.5 39.5a7.5 7.5 0 0 1 15 0z" fill="#16a34a"/>
+  <path d="M18 44.5c2.3-2 4.7-2 7 0s4.7 2 7 0 4.7-2 7 0 4.7 2 7 0" fill="none" stroke="#86efac" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M32 27.5v2.5M23.5 31l1.7 1.7M40.5 31l-1.7 1.7" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round"/>
+</svg>

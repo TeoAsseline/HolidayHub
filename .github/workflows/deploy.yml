@@ -1,0 +1,63 @@
+name: Déploiement
+
+# Chaque push sur main part en production. Le bouton « Run workflow »
+# permet de relancer un déploiement sans rien recommiter.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+
+# Deux déploiements ne doivent jamais se croiser sur le serveur.
+concurrency:
+  group: deploiement-production
+  cancel-in-progress: false
+
+jobs:
+  deployer:
+    name: Mettre à jour le VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # Tant que les secrets ne sont pas renseignés, le déploiement est ignoré
+      # plutôt qu'en échec : une croix rouge permanente finit par être ignorée,
+      # et masquerait une vraie panne le jour où il y en a une.
+      - name: Vérifier la configuration
+        id: config
+        env:
+          HOTE: ${{ secrets.VPS_HOST }}
+          CLE: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          if [ -z "$HOTE" ] || [ -z "$CLE" ]; then
+            echo "::notice title=Deploiement ignore::Secrets absents. Ajoute VPS_HOST, VPS_USER, VPS_SSH_KEY et VPS_KNOWN_HOSTS dans Settings puis Secrets and variables puis Actions."
+            echo "pret=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "pret=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Préparer la clé SSH
+        if: steps.config.outputs.pret == 'true'
+        env:
+          CLE: ${{ secrets.VPS_SSH_KEY }}
+          HOTES_CONNUS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$CLE" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "$HOTES_CONNUS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Déployer
+        if: steps.config.outputs.pret == 'true'
+        env:
+          HOTE: ${{ secrets.VPS_HOST }}
+          UTILISATEUR: ${{ secrets.VPS_USER }}
+          PORT: ${{ secrets.VPS_PORT || 22 }}
+        run: ssh -i ~/.ssh/deploy_key -p "$PORT" -o BatchMode=yes -o ConnectTimeout=15 "$UTILISATEUR@$HOTE"
+
+      - name: Effacer la clé
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#16a34a">
+  <title>HolidayHub — le planning de vacances entre amis, sans compte</title>
+  <meta name="description" content="Organise tes vacances entre amis sur une seule page : planning jour par jour, activités, repas, restos, budget par personne, météo et listes. Gratuit, sans inscription, partage par lien.">
+  <link rel="canonical" href="{{BASE_URL}}/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="HolidayHub">
+  <meta property="og:url" content="{{BASE_URL}}/">
+  <meta property="og:title" content="HolidayHub — le planning de vacances entre amis">
+  <meta property="og:description" content="Planning jour par jour, budget, menus, météo et listes. Sans compte, partage par lien.">
+  <meta property="og:image" content="{{BASE_URL}}/img/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/img/logo.svg" type="image/svg+xml">
+  <link rel="icon" href="/img/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="preload" href="/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="/js/theme-init.js"></script>
+  <link rel="stylesheet" href="/css/style.css">
+  <script type="module" src="/js/home.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="container">
+      <a class="brand" href="/" aria-label="HolidayHub — accueil">
+        <img src="/img/logo.svg" alt="" width="34" height="34">
+        <span class="brand-name">Holiday<span>Hub</span></span>
+      </a>
+      <div class="topbar-actions">
+        <a class="btn btn-ghost hide-mobile" href="#comment">Comment ça marche</a>
+        <button class="btn btn-ghost btn-icon" data-theme-toggle></button>
+        <a class="btn btn-primary" href="/nouveau"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="btn-label">Créer un planning</span></a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container hero-grid">
+        <div>
+          <span class="eyebrow">🌴 Gratuit · sans compte · fait pour les potes</span>
+          <h1>Tout le séjour<br>sur <em>une seule page</em>.</h1>
+          <p class="hero-lead">
+            HolidayHub transforme vos idées de vacances en un planning clair : chaque jour, du réveil à la soirée,
+            avec les activités, les repas, les restos, le budget par personne et la météo. Un lien suffit pour le partager.
+          </p>
+          <div class="hero-actions">
+            <a class="btn btn-primary btn-lg" href="/nouveau">Créer mon planning</a>
+            <a class="btn btn-lg" href="#comment">Voir comment ça marche</a>
+          </div>
+          <div class="hero-points">
+            <span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Aucune inscription</span>
+            <span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Lien lecture + lien édition</span>
+            <span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Mobile & impression PDF</span>
+          </div>
+        </div>
+
+        <div class="preview" aria-hidden="true">
+          <div class="preview-head"><i></i><i></i><i></i><strong>Week-end à la mer</strong></div>
+          <div class="preview-grid">
+            <div class="ph"></div>
+            <div class="ph">Ven 12<span class="badge badge-label">Arrivée</span></div>
+            <div class="ph">Sam 13<span class="badge badge-weather">☀️ 29°C</span></div>
+            <div class="ph p3">Dim 14<span class="badge badge-weather">🌤️ 27°C</span></div>
+            <div class="ph p4">Lun 15<span class="badge badge-label">Départ</span></div>
+
+            <div class="pa tone-blue"><span>Matin</span></div>
+            <div><b>Préparation des bagages</b></div>
+            <div><span class="time-pill">10:45</span><b>Courses</b></div>
+            <div class="p3"><b>Matinée chill</b></div>
+            <div class="p4"><b>Rangement</b></div>
+
+            <div class="pa tone-red"><span>Midi</span></div>
+            <div><b>Repas en route</b><span class="badge tone-grey dashed">À déterminer</span></div>
+            <div><b>Pique-nique</b></div>
+            <div class="p3"><b>Brunch</b><span class="badge tone-amber">Resto 2/3</span></div>
+            <div class="p4"><b>Repas fin de séjour</b></div>
+
+            <div class="pa tone-teal"><span>Aprèm</span></div>
+            <div><span class="time-pill">16:00</span><b>Départ route</b></div>
+            <div><span class="time-pill">14:00</span><b>Kayak</b><span class="badge tone-blue">Activité</span></div>
+            <div class="p3"><span class="time-pill">15:00</span><b>Session plage</b></div>
+            <div class="p4"><b>Retour</b></div>
+
+            <div class="pa tone-grey"><span>Soirée</span></div>
+            <div><span class="time-pill">21:00</span><b>Dîner d'arrivée</b><span class="badge tone-amber">Resto 1/3</span></div>
+            <div><b>Barbecue</b><span class="badge tone-green">Chill</span></div>
+            <div class="p3"><b>Bowling</b><span class="badge tone-amber">Resto 3/3</span></div>
+            <div class="p4"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="container recent" id="recent" hidden>
+      <div class="card recent-card">
+        <div class="card-header">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></svg>
+          Mes plannings récents
+          <span class="kv-sub" style="margin-left:auto;text-transform:none;letter-spacing:0">mémorisés sur cet appareil</span>
+        </div>
+        <ul class="recent-list" id="recent-list"></ul>
+      </div>
+    </section>
+
+    <section class="section" id="comment">
+      <div class="container container-narrow">
+        <div class="section-head">
+          <h2>Comment ça marche ?</h2>
+          <p>Trois étapes, aucun compte à créer. Le planning vit à une adresse secrète que tu partages avec qui tu veux.</p>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <h3>Crée le séjour</h3>
+            <p>Un titre, une destination, des dates et un modèle de départ (semaine à la plage, week-end, road-trip…). Dix secondes.</p>
+          </div>
+          <div class="step">
+            <h3>Remplis la grille</h3>
+            <p>Chaque jour est découpé en périodes : réveil, matin, midi, aprèm, soirée. Ajoute les activités avec l'heure, le lieu, le prix et des tags.</p>
+          </div>
+          <div class="step">
+            <h3>Partage le lien</h3>
+            <p>Le lien de lecture part sur le groupe WhatsApp. Le lien d'édition reste aux organisateurs. Tout est enregistré automatiquement.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt">
+      <div class="container">
+        <div class="section-head">
+          <h2>Tout ce qu'il faut, rien de plus</h2>
+          <p>Né d'un vrai planning de vacances entre amis, pensé pour être lu en un coup d'œil.</p>
+        </div>
+        <div class="features">
+          <div class="feature">
+            <div class="feature-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></div>
+            <h3>Grille jours × périodes</h3>
+            <p>Une colonne par jour, une ligne par moment de la journée. Périodes renommables et réordonnables.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/></svg></div>
+            <h3>Par semaine</h3>
+            <p>Les longs séjours se découpent en onglets par semaine, avec une vue « tout le séjour ».</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></div>
+            <h3>Budget automatique</h3>
+            <p>Courses, essence, logement, plus chaque activité saisie : le total par personne se calcule tout seul.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg></div>
+            <h3>Menus & restos</h3>
+            <p>Liste des menus prévus, repas encore à déterminer, et restos numérotés : Resto 2/4.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg></div>
+            <h3>Météo intégrée</h3>
+            <p>Prévisions automatiques à moins de 16 jours, avec alerte chaleur et vent. Saisie manuelle sinon.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg></div>
+            <h3>Listes cochables</h3>
+            <p>Courses, bagages, à réserver… autant de listes que tu veux, plus la liste des participants.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg></div>
+            <h3>Pensé pour le téléphone</h3>
+            <p>Sur mobile, la grille devient une vue jour par jour qu'on fait défiler du doigt.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg></div>
+            <h3>Impression & PDF</h3>
+            <p>Une version papier propre en paysage, une page par semaine. Et un bouton pour dupliquer l'an prochain.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="section-head">
+          <h2>Questions fréquentes</h2>
+        </div>
+        <div class="faq">
+          <details>
+            <summary>Pourquoi n'y a-t-il pas de compte ?</summary>
+            <p>Parce qu'on veut juste organiser des vacances. À la création, tu reçois deux liens secrets : un lien de lecture à partager avec le groupe, et un lien d'édition pour les organisateurs. Les plannings que tu ouvres sont aussi mémorisés dans ce navigateur, dans « Mes plannings récents ».</p>
+          </details>
+          <details>
+            <summary>J'ai perdu le lien d'édition, je fais comment ?</summary>
+            <p>S'il a été ouvert sur cet appareil, il apparaît dans « Mes plannings récents » en haut de cette page. Sinon, il n'existe aucun moyen de le retrouver : c'est le prix de l'absence de compte. Garde-le dans tes favoris ou dans une note.</p>
+          </details>
+          <details>
+            <summary>Plusieurs personnes peuvent-elles modifier en même temps ?</summary>
+            <p>Oui, avec le lien d'édition. Les modifications sont enregistrées automatiquement ; si deux personnes modifient au même moment, HolidayHub le détecte et te laisse choisir quelle version garder, plutôt que d'écraser en silence.</p>
+          </details>
+          <details>
+            <summary>Combien de temps mon planning est-il conservé ?</summary>
+            <p>Tant qu'il est consulté. Un planning que personne n'a ouvert depuis un an est supprimé automatiquement. Tu peux aussi le supprimer toi-même depuis le lien d'édition.</p>
+          </details>
+          <details>
+            <summary>Mes données sont-elles visibles par d'autres ?</summary>
+            <p>Seulement par les personnes qui ont le lien. Les plannings ne sont jamais indexés par les moteurs de recherche, il n'y a ni publicité ni traceur. La météo est demandée à Open-Meteo, avec les seules coordonnées de la destination.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="container">
+      <div class="cta-band">
+        <h2>Prêt à organiser le prochain séjour ?</h2>
+        <p>Ton planning est en ligne en moins d'une minute.</p>
+        <a class="btn btn-lg" href="/nouveau">Créer un planning</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <a class="brand" href="/">
+        <img src="/img/logo.svg" alt="" width="26" height="26">
+        <span class="brand-name">Holiday<span>Hub</span></span>
+      </a>
+      <span>Le planning de vacances entre amis.</span>
+      <span class="footer-right">Par <a href="https://teoasseline.fr" rel="noopener">Téo Asseline</a> · Météo <a href="https://open-meteo.com" rel="noopener">Open-Meteo</a></span>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#16a34a">
+  <title>Nouveau planning · HolidayHub</title>
+  <link rel="icon" href="/img/logo.svg" type="image/svg+xml">
+  <link rel="icon" href="/img/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="preload" href="/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="/js/theme-init.js"></script>
+  <link rel="stylesheet" href="/css/style.css">
+  <script type="module" src="/js/new.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="container">
+      <a class="brand" href="/" aria-label="HolidayHub — accueil">
+        <img src="/img/logo.svg" alt="" width="34" height="34">
+        <span class="brand-name">Holiday<span>Hub</span></span>
+      </a>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost btn-icon" data-theme-toggle></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container container-narrow create-main">
+    <div class="create-head">
+      <h1>Nouveau planning</h1>
+      <p>Tout se modifie ensuite : dates, périodes, tags, listes… Pas de compte, tu recevras deux liens.</p>
+    </div>
+
+    <form class="create-form" id="create-form" novalidate>
+      <div class="card">
+        <div class="card-header">Le séjour</div>
+        <div class="field">
+          <label for="title">Titre</label>
+          <input class="input" id="title" name="title" required maxlength="120" placeholder="Vacances à Port-la-Nouvelle" autofocus>
+        </div>
+        <div class="field">
+          <label for="destination">Destination</label>
+          <div class="autocomplete"><input class="input" id="destination" name="destination" maxlength="120" placeholder="Commence à taper une ville…"></div>
+          <span class="hint" id="dest-hint">Facultatif. Choisis une ville dans la liste pour la météo automatique.</span>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="start">Premier jour</label>
+            <input class="input" type="date" id="start" name="start" required>
+          </div>
+          <div class="field">
+            <label for="end">Dernier jour</label>
+            <input class="input" type="date" id="end" name="end" required>
+          </div>
+        </div>
+        <div class="duration-hint" id="duration" aria-live="polite"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">Les participants</div>
+        <div class="field">
+          <label for="people">Prénoms</label>
+          <textarea class="textarea" id="people" name="people" rows="4" placeholder="Téo, Léa, Tom, Inès, Hugo"></textarea>
+          <span class="hint">Séparés par des virgules ou un par ligne. Sert au budget par personne. Facultatif.</span>
+        </div>
+      </div>
+
+      <div class="card full">
+        <div class="card-header">Point de départ</div>
+        <div class="templates" id="templates" role="radiogroup" aria-label="Modèle"></div>
+      </div>
+
+      <div class="create-actions full">
+        <span class="form-error" id="form-error" role="alert"></span>
+        <a class="btn btn-lg" href="/">Annuler</a>
+        <button class="btn btn-primary btn-lg" type="submit" id="submit">Créer le planning</button>
+      </div>
+    </form>
+  </main>
+</body>
+</html>
