@@ -49,7 +49,16 @@ export function money(n) {
 }
 
 export function parseAmount(value) {
-  const n = parseFloat(String(value ?? '').replace(/\s/g, '').replace(',', '.'));
+  let s = String(value ?? '').replace(/[\s  €]/g, '');
+  // « 1.234,50 » ou « 1,234.50 » : le dernier séparateur est la décimale, les autres des milliers.
+  const lastSep = Math.max(s.lastIndexOf(','), s.lastIndexOf('.'));
+  if (lastSep !== -1) {
+    const int = s.slice(0, lastSep).replace(/[.,]/g, '');
+    const dec = s.slice(lastSep + 1);
+    // « 1.234 » / « 1,234 » seul (3 chiffres, un seul séparateur) reste ambigu : on garde la décimale.
+    s = int + '.' + dec;
+  }
+  const n = /^\d*\.?\d+$|^\d+\.$/.test(s) ? parseFloat(s) : NaN;
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null;
 }
 
@@ -167,7 +176,18 @@ export function openModal({ title, body, foot = '', wide = false, onClose }) {
     if (onClose) onClose();
   }
   function onKey(e) {
-    if (e.key === 'Escape' && backdrop === $$('.modal-backdrop').at(-1)) close();
+    if (backdrop !== $('.modal-backdrop').at(-1)) return;
+    if (e.key === 'Escape') close();
+    // Piège à focus : Tab ne sort pas de la fenêtre modale.
+    if (e.key === 'Tab') {
+      const items = $('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])', backdrop)
+        .filter((x) => x.offsetParent !== null || x === document.activeElement);
+      if (!items.length) { e.preventDefault(); return; }
+      const first = items[0], last = items.at(-1);
+      if (!backdrop.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+      else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
   }
   document.addEventListener('keydown', onKey);
   // Un glisser de sélection qui finit dehors ne doit pas fermer la fenêtre.
@@ -180,6 +200,7 @@ export function openModal({ title, body, foot = '', wide = false, onClose }) {
   const modal = $('.modal', backdrop);
   const first = $('[autofocus]', modal) || $('input, select, textarea', $('.modal-body', modal));
   if (first && window.matchMedia('(hover: hover)').matches) setTimeout(() => first.focus(), 30);
+  else setTimeout(() => { if (!modal.contains(document.activeElement)) $('[data-close]', modal).focus(); }, 30);
   return { el: modal, close };
 }
 

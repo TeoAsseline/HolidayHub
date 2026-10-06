@@ -9,7 +9,7 @@
 import { $, $$, esc, icon, safeUrl, uid, debounce, money, parseAmount, initials, toast, copyText,
          openModal, confirmDialog, bindThemeToggle, bindMenus } from './lib/util.js';
 import { api } from './lib/api.js';
-import { rememberPlan, findRecent, forgetPlan } from './lib/recent.js';
+import { rememberPlan, findRecent, forgetPlan, forgetEditToken } from './lib/recent.js';
 import { forecast, bindPlaceAutocomplete } from './lib/weather.js';
 import * as M from './lib/model.js';
 
@@ -32,6 +32,7 @@ const state = {
   dirty: false,
   saveState: 'saved',
   conflict: null,
+  saveBlocked: null,      // erreur définitive de sauvegarde : plus de nouvelle tentative
 };
 
 const isEdit = () => state.mode === 'edit';
@@ -53,6 +54,7 @@ async function boot() {
   } catch (err) {
     if (err.status === 404) {
       if (kind === 'p') forgetPlan(id);
+      else forgetEditToken(id);
       return showError(
         kind === 'e' ? 'Lien d\'édition invalide' : 'Planning introuvable',
         'Ce planning n\'existe pas ou plus : il a peut-être été supprimé, ou n\'a pas été ouvert depuis plus d\'un an.'
@@ -65,7 +67,13 @@ async function boot() {
   state.viewId = result.viewId;
   state.editToken = result.editToken || null;
   state.version = result.version;
-  state.plan = M.normalize(result.data);
+  // Un planning abîmé ne doit pas laisser une page blanche : on affiche une erreur lisible.
+  try {
+    state.plan = M.normalize(result.data);
+  } catch (err) {
+    console.error(err);
+    return showError('Planning illisible', 'Ce planning contient des données invalides et ne peut pas être affiché.');
+  }
 
   remember();
   if (!isEdit()) state.knownEditToken = findRecent(state.viewId)?.editToken || null;
@@ -78,8 +86,13 @@ async function boot() {
   const allWeeks = M.weeks(dates);
   state.week = allWeeks.length === 1 ? 'all' : Math.max(0, allWeeks.findIndex((w) => w.includes(today)));
 
-  renderTopbar();
-  render();
+  try {
+    renderTopbar();
+    render();
+  } catch (err) {
+    console.error(err);
+    return showError('Planning illisible', 'Ce planning contient des données invalides et ne peut pas être affiché.');
+  }
   loadWeather();
 
   const params = new URLSearchParams(location.search);
@@ -142,7 +155,7 @@ function commit({ weather = false } = {}) {
 }
 
 async function save() {
-  if (!isEdit() || state.conflict) return;
+  if (!isEdit() || state.conflict || state.saveBlocked) return;
   if (state.saving) { state.changedDuringSave = true; return; }
   state.saving = true;
   state.changedDuringSave = false;
@@ -158,10 +171,18 @@ async function save() {
       state.conflict = err.body.current;
       setSaveState('error', 'Conflit');
       render();
-    } else {
+    } else if (err.status === 0 || err.status === 429 || err.status >= 500) {
+      // Erreur passagère (réseau, limite, serveur) : on réessaie plus tard.
       setSaveState('error', err.status === 0 ? 'Hors ligne' : 'Erreur');
       toast(err.message, 'error', 4000);
-      setTimeout(() => { if (state.dirty) scheduleSave(); }, 5000);
+      setTimeout(() => { if (state.dirty && !state.saveBlocked) scheduleSave(); }, 5000);
+    } else {
+      // Erreur définitive (404, 400, 413…) : réessayer ne servirait à rien.
+      state.saveBlocked = err.status === 404
+        ? 'Ce planning n'existe plus : tes modifications ne peuvent pas être enregistrées.'
+        : 'Tes modifications ne peuvent pas être enregistrées : ' + err.message;
+      setSaveState('error', 'Non enregistré');
+      render();
     }
   } finally {
     state.saving = false;
@@ -184,6 +205,18 @@ window.addEventListener('beforeunload', (e) => {
 });
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden' && isEdit() && state.dirty && !state.saving) scheduleSave.flush();
+});
+// Fermeture de l'onglet : fetch keepalive (limité à 64 Ko par le navigateur),
+// qui survit au déchargement de la page contrairement à une sauvegarde normale.
+window.addEventListener('pagehide', () => {
+  if (!isEdit() || !state.dirty || state.saving || state.conflict || state.saveBlocked) return;
+  const body = JSON.stringify({ version: state.version, data: state.plan });
+  if (new Blob([body]).size > 60_000) return;
+  try {
+    fetch('/api/plans/edit/' + encodeURIComponent(state.editToken), {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body, keepalive: true,
+    }).catch(() => {});
+  } catch { /* navigateur sans keepalive */ }
 });
 
 // ════════════════════════════════════════════════════════════════
@@ -242,6 +275,9 @@ function render() {
 
   // Un redessin complet ne doit faire perdre ni le champ en cours, ni le défilement.
   const focusKey = document.activeElement?.dataset?.focusKey;
+  // Texte en cours de saisie dans les champs d'ajout rapide : il survit au redessin.
+  const typed = new Map($$('input[data-focus-key]', app).filter((x) => x.value && x.type !== 'checkbox').map((x) => [x.dataset.focusKey, x.value]));
+  const caret = document.activeElement?.selectionStart;
   const scrollX = $('.grid-view')?.scrollLeft || 0;
   const stripX = $('.day-strip')?.scrollLeft;
 
@@ -257,6 +293,7 @@ function render() {
 
   app.innerHTML = `
     ${state.conflict ? conflictBanner() : ''}
+    ${state.saveBlocked && !state.conflict ? `<div class="banner" role="alert">${icon('alert')}<span>${esc(state.saveBlocked)}</span></div>` : ''}
     ${headerSection(dates)}
     <section class="meta-grid ${cards.length === 3 ? 'three' : ''}">${cards.join('')}</section>
     ${weekBar(allWeeks)}
@@ -264,9 +301,16 @@ function render() {
     ${dayView(dates, counters)}
     ${organisationSection()}`;
 
+  for (const [key, value] of typed) {
+    const el = $(`[data-focus-key="${CSS.escape(key)}"]`, app);
+    if (el && el.type !== 'checkbox') el.value = value;
+  }
   if (focusKey) {
     const el = $(`[data-focus-key="${CSS.escape(focusKey)}"]`, app);
-    if (el) el.focus();
+    if (el) {
+      el.focus();
+      if (caret != null && el.setSelectionRange) try { el.setSelectionRange(caret, caret); } catch { /* type sans sélection */ }
+    }
   }
   const grid = $('.grid-view');
   if (grid) grid.scrollLeft = scrollX;
@@ -311,7 +355,7 @@ const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 function cardHeader(title, action, iconName) {
   return `
     <div class="card-header">
-      ${title}
+      ${esc(title)}
       ${canEdit() && action ? `<div class="card-tools no-print"><button class="btn btn-ghost btn-icon btn-sm" data-action="${action}" aria-label="Modifier : ${esc(title)}" title="Modifier">${icon(iconName || 'edit', 'icon-sm')}</button></div>` : ''}
     </div>`;
 }
@@ -347,7 +391,7 @@ function menusCard() {
       <ul class="check-list">
         ${p.menus.map((m) => `
           <li class="check-item ${m.done ? 'done' : ''}">
-            <input type="checkbox" class="checkbox" data-change="menu-done" data-id="${esc(m.id)}" ${m.done ? 'checked' : ''} aria-label="Placé dans le planning : ${esc(m.label)}">
+            <input type="checkbox" class="checkbox" data-change="menu-done" data-id="${esc(m.id)}" data-focus-key="menu-done-${esc(m.id)}" ${m.done ? 'checked' : ''} aria-label="Placé dans le planning : ${esc(m.label)}">
             <span class="check-text">${esc(m.label)}</span>
             <button class="btn btn-ghost btn-icon btn-sm row-delete" data-action="menu-delete" data-id="${esc(m.id)}" aria-label="Supprimer ${esc(m.label)}">${icon('x', 'icon-sm')}</button>
           </li>`).join('')}
@@ -402,7 +446,7 @@ function noticeCard() {
   const n = state.plan.notice;
   return `
     <div class="card notice-card">
-      ${cardHeader('⚠️ ' + esc(n.title || 'À savoir'), 'settings-notice')}
+      ${cardHeader('⚠️ ' + (n.title || 'À savoir'), 'settings-notice')}
       <div class="notice-text">${esc(n.text)}</div>
     </div>`;
 }
@@ -495,13 +539,15 @@ function eventHTML(e, counters, edit) {
   }
 
   const attrs = edit
-    ? `class="event-block clickable" data-event="${esc(e.id)}" draggable="true" role="button" tabindex="0" aria-label="Modifier : ${esc(e.title)}"`
+    ? `class="event-block clickable" data-event="${esc(e.id)}" draggable="true"`
     : 'class="event-block"';
   return `
     <div ${attrs}>
       <div class="event-header">
         ${e.time ? `<span class="time-pill">${esc(e.time)}</span>` : ''}
-        <span class="event-task">${esc(e.title)}</span>
+        ${edit
+          ? `<button type="button" class="event-task" data-action="edit-event" data-id="${esc(e.id)}" aria-label="Modifier : ${esc(e.title)}">${esc(e.title)}</button>`
+          : `<span class="event-task">${esc(e.title)}</span>`}
       </div>
       ${meta.length ? `<div class="event-meta">${meta.join('')}</div>` : ''}
     </div>`;
@@ -594,7 +640,7 @@ function organisationSection() {
         <ul class="check-list">
           ${list.items.map((item) => `
             <li class="check-item ${item.done ? 'done' : ''}">
-              <input type="checkbox" class="checkbox" data-change="item-done" data-list="${esc(list.id)}" data-id="${esc(item.id)}" ${item.done ? 'checked' : ''} ${edit ? '' : 'disabled'} aria-label="${esc(item.text)}">
+              <input type="checkbox" class="checkbox" data-change="item-done" data-list="${esc(list.id)}" data-id="${esc(item.id)}" data-focus-key="item-done-${esc(item.id)}" ${item.done ? 'checked' : ''} ${edit ? '' : 'disabled'} aria-label="${esc(item.text)}">
               <span class="check-text">${esc(item.text)}</span>
               ${edit ? `<button class="btn btn-ghost btn-icon btn-sm row-delete no-print" data-action="item-delete" data-list="${esc(list.id)}" data-id="${esc(item.id)}" aria-label="Supprimer ${esc(item.text)}">${icon('x', 'icon-sm')}</button>` : ''}
             </li>`).join('')}
@@ -846,6 +892,7 @@ document.addEventListener('click', async (e) => {
     case 'budget': return openBudgetModal();
     case 'add-event': return openEventModal({ date: el.dataset.date, periodId: el.dataset.period });
     case 'edit-day': return openDayModal(el.dataset.date);
+    case 'edit-event': return openEventModal({ eventId: el.dataset.id });
     case 'week':
       state.week = el.dataset.week === 'all' ? 'all' : Number(el.dataset.week);
       return render();
@@ -891,13 +938,6 @@ document.addEventListener('click', async (e) => {
       state.conflict = null;
       render();
       return save();
-  }
-});
-
-document.addEventListener('keydown', (e) => {
-  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('.event-block[data-event]')) {
-    e.preventDefault();
-    openEventModal({ eventId: e.target.dataset.event });
   }
 });
 
@@ -988,6 +1028,12 @@ app.addEventListener('drop', (e) => {
   e.preventDefault();
   // Déposé sur un événement : on s'insère avant lui ; ailleurs dans la case : à la fin.
   const before = e.target.closest('.event-block[data-event]');
+  // Lâché sur lui-même : rien ne bouge.
+  if (before && before.dataset.event === dragId) {
+    dragId = null;
+    $$('.dragging, .drop-target').forEach((x) => x.classList.remove('dragging', 'drop-target'));
+    return;
+  }
   let index = null;
   if (before && before.dataset.event !== dragId) {
     const target = M.findEvent(state.plan, before.dataset.event);
@@ -1038,7 +1084,7 @@ function openEventModal({ eventId, date, periodId }) {
       <div class="field">
         <label for="ev-price">Prix</label>
         <div class="input-group">
-          <input class="input" id="ev-price" name="price" inputmode="decimal" value="${ev.price?.amount ? String(ev.price.amount).replace('.', ',') : ''}" placeholder="0">
+          <input class="input" id="ev-price" name="price" inputmode="decimal" value="${ev.price?.amount ? esc(String(ev.price.amount).replace('.', ',')) : ''}" placeholder="0">
           <select class="select" name="priceMode" aria-label="Type de prix">
             <option value="pp" ${ev.price?.mode !== 'total' ? 'selected' : ''}>€ par personne</option>
             <option value="total" ${ev.price?.mode === 'total' ? 'selected' : ''}>€ pour le groupe</option>
@@ -1234,7 +1280,7 @@ function openBudgetModal() {
             <div class="edit-row-main">
               <input class="input input-sm" data-field="label" value="${esc(item.label)}" placeholder="Courses, Essence, Logement…" maxlength="60" aria-label="Poste">
               <div class="input-group">
-                <input class="input input-sm" data-field="amount" inputmode="decimal" value="${item.amount ? String(item.amount).replace('.', ',') : ''}" placeholder="0" aria-label="Montant">
+                <input class="input input-sm" data-field="amount" inputmode="decimal" value="${item.amount ? esc(String(item.amount).replace('.', ',')) : ''}" placeholder="0" aria-label="Montant">
                 <select class="select input-sm" data-field="mode" aria-label="Type">
                   <option value="total" ${item.mode !== 'pp' ? 'selected' : ''}>€ global</option>
                   <option value="pp" ${item.mode === 'pp' ? 'selected' : ''}>€ par pers.</option>

@@ -48,3 +48,8 @@ export function findRecent(viewId) {
 export function forgetPlan(viewId) {
   write(read().filter((p) => p.viewId !== viewId));
 }
+
+/** Un lien d'édition invalide : on l'oublie (l'entrée disparaît, on ne connaît pas son viewId). */
+export function forgetEditToken(editToken) {
+  write(read().filter((p) => p.editToken !== editToken));
+}

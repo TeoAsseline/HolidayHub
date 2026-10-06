@@ -77,26 +77,109 @@ export function newEvent(fields = {}) {
   return { id: uid(), time: '', title: '', location: '', price: null, tags: [], notes: '', url: '', ...fields };
 }
 
+// ── Normalisation défensive ──────────────────────────────────────
+// Le serveur stocke le JSON tel quel : un client bogué ou malveillant peut y
+// mettre n'importe quoi. Chaque niveau est donc vérifié ici, et une entrée
+// inexploitable est écartée plutôt que de faire planter la page de tous.
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+const str = (v, fallback = '') => (typeof v === 'string' ? v : typeof v === 'number' && Number.isFinite(v) ? String(v) : fallback);
+const bool = (v) => v === true;
+const arr = (v) => (Array.isArray(v) ? v.filter(isObj) : []);
+const id = (v) => (typeof v === 'string' && v ? v : typeof v === 'number' ? String(v) : uid());
+const tone = (v) => (TONES.includes(v) ? v : 'grey');
+
+/** Montant positif ou null ; accepte un nombre ou une chaîne (« 12,5 »). */
+export function toAmount(v) {
+  const n = typeof v === 'string' ? Number(v.replace(/\s/g, '').replace(',', '.')) : Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+/** Date de calendrier réelle, entre 2000 et 2100 (« 2026-02-30 » est refusé). */
+export function isISODate(v) {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const d = new Date(v + 'T00:00:00Z');
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v) return false;
+  const y = d.getUTCFullYear();
+  return y >= 2000 && y <= 2100;
+}
+
+function normalizeEvent(e) {
+  const price = isObj(e.price) && toAmount(e.price.amount) > 0
+    ? { amount: toAmount(e.price.amount), mode: e.price.mode === 'total' ? 'total' : 'pp' }
+    : null;
+  return {
+    id: id(e.id),
+    time: str(e.time),
+    title: str(e.title),
+    location: str(e.location),
+    price,
+    tags: Array.isArray(e.tags) ? e.tags.filter((t) => typeof t === 'string') : [],
+    notes: str(e.notes),
+    url: str(e.url),
+  };
+}
+
 /** Complète un planning ancien ou incomplet pour que le reste du code n'ait jamais à douter. */
 export function normalize(plan) {
-  const p = { ...plan };
+  const src = isObj(plan) ? plan : {};
+  const p = {};
   p.schema = SCHEMA;
-  p.subtitle = p.subtitle || '';
-  p.destination = p.destination && p.destination.name ? p.destination : null;
-  p.notice = { enabled: true, title: 'Statut du planning', text: DEFAULT_NOTICE_TEXT, ...(p.notice || {}) };
-  p.periods = Array.isArray(p.periods) && p.periods.length ? p.periods : defaultPeriods();
-  p.tags = Array.isArray(p.tags) ? p.tags : defaultTags();
-  p.days = p.days && typeof p.days === 'object' ? p.days : {};
-  p.participants = Array.isArray(p.participants) ? p.participants : [];
-  p.budget = { items: [], includeEvents: true, ...(p.budget || {}) };
-  p.menus = Array.isArray(p.menus) ? p.menus : [];
-  p.lists = Array.isArray(p.lists) ? p.lists : [];
-  for (const day of Object.values(p.days)) {
-    day.cells = day.cells || {};
-    for (const [pid, events] of Object.entries(day.cells)) {
-      day.cells[pid] = (events || []).map((e) => newEvent({ ...e, id: e.id || uid(), tags: e.tags || [] }));
+  p.title = str(src.title).trim() || 'Planning';
+  p.subtitle = str(src.subtitle);
+  if (!isISODate(src.startDate)) throw new Error('Dates du séjour invalides.');
+  p.startDate = src.startDate;
+  p.endDate = isISODate(src.endDate) && src.endDate >= src.startDate ? src.endDate : src.startDate;
+
+  const d = src.destination;
+  p.destination = isObj(d) && typeof d.name === 'string' && d.name
+    ? {
+        name: d.name,
+        label: str(d.label),
+        lat: Number.isFinite(Number(d.lat)) && d.lat !== null && d.lat !== '' ? Number(d.lat) : null,
+        lon: Number.isFinite(Number(d.lon)) && d.lon !== null && d.lon !== '' ? Number(d.lon) : null,
+        detail: str(d.detail),
+      }
+    : null;
+
+  const n = isObj(src.notice) ? src.notice : {};
+  p.notice = {
+    enabled: n.enabled === undefined ? true : bool(n.enabled),
+    title: typeof n.title === 'string' ? n.title : 'Statut du planning',
+    text: typeof n.text === 'string' ? n.text : DEFAULT_NOTICE_TEXT,
+  };
+
+  const periods = arr(src.periods).map((x) => ({ id: id(x.id), name: str(x.name), tone: tone(x.tone), meal: bool(x.meal) }));
+  p.periods = periods.length ? periods : defaultPeriods();
+  p.tags = Array.isArray(src.tags)
+    ? arr(src.tags).map((x) => ({ id: id(x.id), label: str(x.label), tone: tone(x.tone), counter: bool(x.counter), tbd: bool(x.tbd) }))
+    : defaultTags();
+
+  p.days = {};
+  if (isObj(src.days)) {
+    for (const [date, day] of Object.entries(src.days)) {
+      if (!isISODate(date) || !isObj(day)) continue;
+      const cells = {};
+      if (isObj(day.cells)) {
+        for (const [pid, events] of Object.entries(day.cells)) {
+          if (Array.isArray(events)) cells[pid] = events.filter(isObj).map(normalizeEvent);
+        }
+      }
+      p.days[date] = { label: str(day.label), weather: str(day.weather), weatherAlert: bool(day.weatherAlert), cells };
     }
   }
+
+  p.participants = arr(src.participants).map((x) => ({ id: id(x.id), name: str(x.name) })).filter((x) => x.name);
+  const b = isObj(src.budget) ? src.budget : {};
+  p.budget = {
+    items: arr(b.items).map((x) => ({ id: id(x.id), label: str(x.label), amount: toAmount(x.amount), mode: x.mode === 'pp' ? 'pp' : 'total' })),
+    includeEvents: b.includeEvents === undefined ? true : bool(b.includeEvents),
+  };
+  p.menus = arr(src.menus).map((x) => ({ id: id(x.id), label: str(x.label), done: bool(x.done) }));
+  p.lists = arr(src.lists).map((l) => ({
+    id: id(l.id),
+    title: str(l.title),
+    items: arr(l.items).map((x) => ({ id: id(x.id), text: str(x.text), done: bool(x.done) })),
+  }));
   return p;
 }
 
