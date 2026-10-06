@@ -51,19 +51,26 @@ install_deps_if_needed() {
 # reset plutôt que pull : le serveur reflète exactement la branche,
 # sans jamais rester bloqué sur un conflit local.
 git reset --hard "$TARGET"
-install_deps_if_needed "$PREVIOUS" "$TARGET"
+# Si npm ci échoue, le code est déjà à la nouvelle version mais pas ses
+# dépendances : on revient à la version précédente au lieu de s'arrêter là.
+if ! install_deps_if_needed "$PREVIOUS" "$TARGET"; then
+  fail "npm ci a échoué — retour à ${PREVIOUS:0:8}"
+  git reset --hard "$PREVIOUS"
+  install_deps_if_needed "$TARGET" "$PREVIOUS" || true
+  pm2 restart "$PM2_NAME" --update-env || true
+  exit 1
+fi
 
 log "Redémarrage de $PM2_NAME"
 pm2 restart "$PM2_NAME" --update-env
 
 # ── Contrôle de santé ───────────────────────────────────────────
-# Une app protégée par un compte répond 401 ou 403 sur sa racine : c'est une
-# preuve de vie, pas une panne. Seuls une absence de réponse et les erreurs
-# serveur comptent comme un échec.
+# /api/health est public et répond 200 quand l'app tourne : tout autre code
+# (404 d'une route disparue, 502 du proxy…) est un échec.
 log "Vérification de $HEALTH_URL"
 for _ in $(seq 1 "$HEALTH_RETRIES"); do
   CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "$HEALTH_URL" || true)"
-  if [ -n "$CODE" ] && [ "$CODE" != "000" ] && [ "$CODE" -lt 500 ] 2>/dev/null; then
+  if [ "$CODE" = "200" ]; then
     log "En ligne sur ${TARGET:0:8} — HTTP $CODE ✅"
     exit 0
   fi

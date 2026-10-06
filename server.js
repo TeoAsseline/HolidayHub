@@ -18,8 +18,9 @@ const plans = require('./db');
 const { rateLimit } = require('./middleware/rateLimit');
 
 const PORT     = parseInt(process.env.PORT || '7700', 10);
-const HOST     = process.env.HOST || '0.0.0.0';
 const PROD     = process.env.NODE_ENV === 'production';
+// En production, l'app n'écoute que derrière le reverse proxy.
+const HOST     = process.env.HOST || (PROD ? '127.0.0.1' : '0.0.0.0');
 const BASE_URL = String(process.env.BASE_URL || ('http://localhost:' + PORT)).replace(/\/+$/, '');
 const PUBLIC   = path.join(__dirname, 'public');
 
@@ -58,7 +59,6 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(rateLimit({ windowMs: 60_000, max: 600 }));
 
 // ── Pages ──────────────────────────────────────────────────────
 // Les pages HTML sont lues une fois et l'adresse publique y est injectée
@@ -115,10 +115,22 @@ app.get('/sitemap.xml', (req, res) => {
   );
 });
 
+// JS et CSS ne sont pas versionnés : après un déploiement, un module ES en cache
+// importerait des exports qui n'existent plus. On les revalide donc à chaque fois
+// (ETag → 304), et seules les images et polices gardent un cache long.
 app.use(express.static(PUBLIC, {
   index: false,
-  maxAge: PROD ? '1d' : 0,
+  maxAge: 0,
+  setHeaders(res, file) {
+    const rel = path.relative(PUBLIC, file).split(path.sep)[0];
+    if (rel === 'js' || rel === 'css') res.setHeader('Cache-Control', 'no-cache');
+    else if (PROD && (rel === 'img' || rel === 'fonts')) res.setHeader('Cache-Control', 'public, max-age=2592000');
+    else if (PROD) res.setHeader('Cache-Control', 'public, max-age=86400');
+  },
 }));
+
+// Limite globale : seulement sur l'API, pas sur les fichiers statiques.
+app.use('/api', rateLimit({ windowMs: 60_000, max: 600 }));
 
 // ── API ────────────────────────────────────────────────────────
 const api = express.Router();
@@ -127,13 +139,42 @@ api.use(express.json({ limit: MAX_PLAN_BYTES }));
 const VIEW_ID    = /^[A-Za-z0-9]{10}$/;
 const EDIT_TOKEN = /^[A-Za-z0-9]{24}$/;
 
+/** Date de calendrier réelle (refuse 2026-02-30, que Date.parse accepte) et plausible. */
+function isISODate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const d = new Date(value + 'T00:00:00Z');
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== value) return false;
+  const year = d.getUTCFullYear();
+  return year >= 2000 && year <= 2100;
+}
+
+const isObject = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+
 /** Le contenu est libre, mais il doit ressembler à un planning et rester raisonnable. */
 function readPlan(body) {
   const data = body && body.data;
-  if (!data || typeof data !== 'object' || Array.isArray(data)) return { error: 'Planning manquant ou invalide.' };
+  if (!isObject(data)) return { error: 'Planning manquant ou invalide.' };
   if (typeof data.title !== 'string' || !data.title.trim()) return { error: 'Le planning doit avoir un titre.' };
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(data.startDate || '') || !/^\d{4}-\d{2}-\d{2}$/.test(data.endDate || '')) {
-    return { error: 'Dates de séjour invalides.' };
+  if (!isISODate(data.startDate) || !isISODate(data.endDate)) return { error: 'Dates de séjour invalides.' };
+  // Forme des collections principales : le détail est normalisé côté navigateur.
+  for (const key of ['periods', 'tags', 'participants', 'menus', 'lists']) {
+    if (data[key] !== undefined && !Array.isArray(data[key])) return { error: 'Planning invalide (' + key + ').' };
+  }
+  for (const key of ['days', 'budget', 'notice']) {
+    if (data[key] !== undefined && !isObject(data[key])) return { error: 'Planning invalide (' + key + ').' };
+  }
+  if (data.destination != null && !isObject(data.destination)) return { error: 'Planning invalide (destination).' };
+  if (data.days) {
+    for (const [date, day] of Object.entries(data.days)) {
+      if (!isISODate(date) || !isObject(day)) return { error: 'Planning invalide (jours).' };
+      if (day.cells !== undefined && !isObject(day.cells)) return { error: 'Planning invalide (jours).' };
+      for (const events of Object.values(day.cells || {})) {
+        if (!Array.isArray(events)) return { error: 'Planning invalide (événements).' };
+      }
+    }
+  }
+  if (data.budget && data.budget.items !== undefined && !Array.isArray(data.budget.items)) {
+    return { error: 'Planning invalide (budget).' };
   }
   const days = (Date.parse(data.endDate) - Date.parse(data.startDate)) / 86_400_000;
   if (!(days >= 0 && days <= 92)) return { error: 'Un séjour dure entre 1 et 93 jours.' };
@@ -143,7 +184,8 @@ function readPlan(body) {
 }
 
 api.get('/health', (req, res) => {
-  res.json({ ok: true, plans: plans.count(), uptime: Math.round(process.uptime()) });
+  // Public : on ne divulgue ni le nombre de plannings ni l'uptime.
+  res.json({ ok: true });
 });
 
 api.post('/plans', rateLimit({ windowMs: 60 * 60_000, max: CREATE_PER_HOUR, message: 'Trop de plannings créés depuis cette connexion. Réessaie dans une heure.' }), (req, res) => {
