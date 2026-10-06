@@ -179,7 +179,7 @@ async function save() {
     } else {
       // Erreur définitive (404, 400, 413…) : réessayer ne servirait à rien.
       state.saveBlocked = err.status === 404
-        ? 'Ce planning n'existe plus : tes modifications ne peuvent pas être enregistrées.'
+        ? "Ce planning n'existe plus : tes modifications ne peuvent pas être enregistrées."
         : 'Tes modifications ne peuvent pas être enregistrées : ' + err.message;
       setSaveState('error', 'Non enregistré');
       render();
